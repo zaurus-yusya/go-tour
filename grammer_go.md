@@ -423,3 +423,232 @@ func main() {
 	fmt.Println(pos(2))
 }
 ```
+
+## methods
+classはない
+methodはreceiver引数を関数に取る
+```
+type Vertex struct {
+    X, Y float64
+}
+
+func (v Vertex) Abs() float64 {
+    return math.Sqrt(v.X*v.X + v.Y*v.Y)
+}
+
+// mainで宣言したVertex変数を変更するならポインタ(通常の関数と同じ)
+func (v *Vertex) Scale(f float64) {
+	v.X = v.X * f
+	v.Y = v.Y * f
+}
+
+func main () {
+    v := Vertex{3, 4}
+    v.Scale(10) // (&v).Scale(5)として解釈される
+    fmt.Println(v.Abs())
+    p := &v
+    p.Abs(10) // (*p).Absとして解釈される
+}
+```
+
+## interfaces
+メソッドの集合  
+型にメソッドを実装することでインターフェースを満たす
+```
+type I interface {
+	M()
+}
+
+type T struct {
+	S string
+}
+
+// This method means type T implements the interface I,
+// but we don't need to explicitly declare that it does so.
+func (t T) M() {
+	fmt.Println(t.S)
+}
+
+type F float64
+
+func (f float64) M() {
+	fmt.Println(f)
+}
+
+func main() {
+	var i I = T{"hello"}
+	i.M()
+}
+```
+
+インターフェースの値は値と型のタプル
+```
+type I interface {
+	M()
+}
+
+type T struct {
+	S string
+}
+
+func (t *T) M() {
+	fmt.Println(t.S)
+}
+
+func main() {
+	var i I
+
+	i = &T{"Hello"}
+	describe(i)
+}
+
+func describe(i I) {
+	fmt.Printf("(%v, %T)\n", i, i)
+}
+```
+
+インターフェースの値がnilの場合、メソッドはnilをレシーバーとして呼び出される  
+goではnilが呼び出された際にハンドリングするのが一般的
+```
+func (t *T) M() {
+	if t == nil {
+		fmt.Println("<nil>")
+		return
+	}
+	fmt.Println(t.S)
+}
+```
+
+呼び出す 具体的な メソッドを示す型がインターフェースのタプル内に存在しないと、 nil インターフェースのメソッドを呼び出すと、ランタイムエラーになる
+
+空インターフェース
+```
+interface{}
+```
+
+空インターフェースは任意の型の値を保持できる
+```
+func main() {
+	var i interface{}
+	describe(i)
+
+	i = 42
+	describe(i)
+
+	i = "hello"
+	describe(i)
+}
+
+func describe(i interface{}) {
+	fmt.Printf("(%v, %T)\n", i, i)
+}
+```
+
+型アサーション  
+元になる型Tの値を変数tに代入
+```
+t := i.(T)
+```
+iがTを保持していない場合エラー  
+特定の型を保持しているか2つ目の変数（下記ではok）で確認できる
+```
+var i interface{} = "hello"
+
+s := i.(string)
+fmt.Println(s)
+
+s, ok := i.(string)
+fmt.Println(s, ok) //ok = true
+
+f, ok := i.(float64)
+fmt.Println(f, ok) //ok = false, fにはzero valueが入る
+
+f = i.(float64) // エラー
+fmt.Println(f)
+```
+
+switch文を用いたinterface  
+型ごとに処理を変えられる
+```
+func do(i interface{}) {
+	switch v := i.(type) {
+	case int:
+		fmt.Printf("Twice %v is %v\n", v, v*2)
+	case string:
+		fmt.Printf("%q is %v bytes long\n", v, len(v))
+	default:
+		fmt.Printf("I don't know about type %T!\n", v)
+	}
+}
+
+func main() {
+	do(21)
+	do("hello")
+	do(true)
+}
+```
+
+### Stringer
+fmtパッケージに定義されているインターフェース
+```
+type Stringer interface {
+    String() string
+}
+```
+変数をstringで出力できる  
+
+### Error型
+```
+type error interface {
+    Error() string
+}
+```
+
+## ioパッケージ
+データストリームを読むパッケージ  
+
+Read は、データを与えられたバイトスライスへ入れ、入れたバイトのサイズとエラーの値を返す
+```
+func main() {
+	r := strings.NewReader("Hello, Reader!")
+
+	b := make([]byte, 8)
+	for {
+		n, err := r.Read(b)
+		fmt.Printf("n = %v err = %v b = %v\n", n, err, b)
+		fmt.Printf("b[:n] = %q\n", b[:n])
+		if err == io.EOF {
+			break
+		}
+	}
+}
+```
+
+## images
+```
+type Image interface {
+    ColorModel() color.Model
+    Bounds() Rectangle
+    At(x, y int) color.Color
+}
+```
+
+## goroutines
+goroutineは軽量なスレッド
+```
+go f(x, y, z)
+```
+
+## channels
+```
+ch <- v    // v をチャネル ch へ送信する
+v := <-ch  // ch から受信した変数を v へ割り当てる
+```
+
+宣言
+```
+ch := make(chan int)
+ch := make(chan, int, 10) // 第三引数はバッファ
+```
+バッファが詰まっているときはチャネルへの送信をブロック  
+バッファが空のときはチャネルの受信をブロック
