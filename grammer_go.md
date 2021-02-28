@@ -652,3 +652,58 @@ ch := make(chan, int, 10) // 第三引数はバッファ
 ```
 バッファが詰まっているときはチャネルへの送信をブロック  
 バッファが空のときはチャネルの受信をブロック
+
+送り手はこれ以上送信する値がないことを示すため、チャネルをcloseできる  
+引数を2つ取ることが可能  
+受診する値がない、かつチャネルが閉じている場合、okはfalse
+```
+v, ok := <-ch
+```
+
+## select  
+selectは複数あるcaseのいずれかが準備できるまでブロックし、準備ができたらcaseを実行  
+複数のcaseの準備ができている場合caseはランダムに実行
+```
+func fibonacci(c, quit chan int) {
+	x, y := 0, 1
+	for {
+		select {
+		case c <- x:
+			x, y = y, x+y
+		case <-quit:
+			fmt.Println("quit")
+			return
+		}
+	}
+}
+
+func main() {
+	c := make(chan int)
+	quit := make(chan int)
+	go func() {
+		for i := 0; i < 10; i++ {
+			fmt.Println(<-c)
+		}
+		quit <- 0
+	}()
+	fibonacci(c, quit)
+}
+```
+
+どのcaseも準備できていない場合、selectの中のdefaultが実行される
+```
+select {
+case i := <-c:
+    // use i
+default:
+    // receiving from c would block
+}
+```
+
+## sync.Mutex
+コンフリクトを避けるために一度に1つのgoroutineだけが変数にアクセスできる  
+
+```
+sync.Mutex
+Lock, Unlockメソッドで管理
+```
